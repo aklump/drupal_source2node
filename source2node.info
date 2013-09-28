@@ -1,0 +1,10 @@
+; $Id$
+name = Source To Node 
+description = Assist in the migration of flat html pages to drupal nodes.
+package = Custom
+core = 7.x
+version = VERSION
+
+//all modules must declare files containing classes and interfaces in the .info file
+files[] = source2node.module
+files[] = source2node.admin.inc

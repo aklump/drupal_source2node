@@ -1,0 +1,78 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Handles installation steps for source2node
+ */
+
+/**
+ * Implementation of hook_schema
+ */
+function source2node_schema() {
+  $schema = array();
+  $schema['source2node_index'] = array(
+    'description' => 'TODO: please describe this table!',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'TODO: please describe this field!',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'source' => array(
+        'description' => 'TODO: please describe this field!',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+    ),
+  );
+
+  return $schema;
+}
+
+
+/**
+ * The install hook will fire when the module gets installed
+ */
+function source2node_install() {
+
+}
+
+/*
+ * The uninstall hook will fire when the module gets uninstalled.
+ */
+function source2node_uninstall() {
+  
+  //Clean up our entries in the variables table.
+  if ($result = db_query("SELECT name FROM {variable} WHERE `name` LIKE 'source2node%'")) {
+    foreach($result as $data) {
+      variable_del($data->name);
+    }    
+  }	
+  
+  //delete blocks
+  //db_query("DELETE FROM {block} WHERE `module` = 'source2node'");
+}
+
+/**
+ * Implementation of hook_requirements().
+ *
+ * Checks installation requirements and do status reporting.
+ * http://api.drupal.org/api/function/hook_requirements
+ * 
+ * @param phase 'install' or 'runtime': 
+ * @return A keyed array of requirements
+ */
+//function source2node_requirements($phase) {
+//  $reqs = array();
+//  $t = get_t();
+//  if ($phase == 'runtime') {
+//    $reqs['source2node'] = array(
+//      'title' => $t('Title'),
+//      'severity' => REQUIREMENT_WARNING,
+//      'description' => $t(''),
+//      );
+//  }
+//  return $reqs;
+//}
