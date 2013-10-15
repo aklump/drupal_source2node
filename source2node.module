@@ -1,8 +1,8 @@
 <?php
-// $Id$ 
+// $Id$
 
-/** 
-* @file 
+/**
+* @file
 * Base module file for source2node
 */
 
@@ -17,20 +17,17 @@ define('SOURCE2NODE_WHITESPACE_CLEANUP', TRUE);
  */
 function source2node_form_alter(&$form, $form_state, $form_id) {
 
-  if (!user_access('administer source2node')) {
-    return;
-  }
-
-  //is this a node edit form
-  if (substr($form['#form_id'], -9) != 'node_form') {
+  if (substr($form['#form_id'], -9) != 'node_form'
+      || !user_access('administer source2node')) {
     return;
   }
 
   //has module been setup for this node type?
-  if (_source2node_get_insert_body_field($form['type']['#value']) == -1 && _source2node_get_insert_title_field($form['type']['#value']) == -1) {
+  if (_source2node_get_insert_body_field($form['type']['#value']) == -1
+      && _source2node_get_insert_title_field($form['type']['#value']) == -1) {
     return;
   }
-  
+
   $node = new stdClass();
   if (isset($form['#node']->nid)) {
     $node = $form['#node'];
@@ -40,7 +37,8 @@ function source2node_form_alter(&$form, $form_state, $form_id) {
   //edit $id to something besides ''
   $id = '_';
   $form['#source2node_global_id'] = $id;
-  
+  $form['#post_render'][] = '_source2node_post_render';
+
   //these classes will be used by js to know where to put things
   if (($key = _source2node_get_insert_title_field($form['type']['#value'])) && isset($form[$key])) {
     $form[$key]['#attributes']['class'][] = 'source2node-insert-title-field';
@@ -48,15 +46,6 @@ function source2node_form_alter(&$form, $form_state, $form_id) {
   if (($key = _source2node_get_insert_body_field($form['type']['#value'])) && isset($form[$key])) {
     $form[$key]['#attributes']['class'][] = 'source2node-insert-body-field';
   }
-  
-  //communicate with our script  
-  drupal_add_js(array('source2node' => array(
-    'token' => drupal_get_token('source2node'),
-    'globalId' => str_replace('_', '-', $id),
-    //'insertTitleField' => _source2node_get_insert_title_field($form['type']['#value']),
-    //'insertBodyField' => _source2node_get_insert_body_field($form['type']['#value']),
-  )), 'setting');  
-  drupal_add_js(drupal_get_path('module', 'source2node') .'/source2node.js');
 
   $form['source2node'. $id] = array(
     '#type' => 'fieldset',
@@ -65,7 +54,7 @@ function source2node_form_alter(&$form, $form_state, $form_id) {
     '#collapsed' => !empty($form['nid']['#value']),
     '#weight' => $form['title']['#weight'] - 1,
   );
-  
+
   $form['source2node' . $id]['source2node'. $id .'url'] = array(
     '#type' => 'textfield',
     '#description' => t('Enter the url of the page you wish to scrape.'),
@@ -90,7 +79,7 @@ function source2node_form_alter(&$form, $form_state, $form_id) {
     '#required' => FALSE,
     '#rows' => 2,
   );
-  
+
   $form['source2node' . $id]['source2node'. $id .'end'] = array(
     '#type' => 'textarea',
     '#description' => t('Enter the text that marks the end of your section in the source. E.g. <strong>&lt;!-- InstanceEndEditable --></strong> You may enter regex strings; indicate this by wrapping your string in forward-slashes'),
@@ -99,8 +88,8 @@ function source2node_form_alter(&$form, $form_state, $form_id) {
     '#required' => FALSE,
     '#rows' => 2,
   );
-  
-  
+
+
   //@todo This needs work for offsets and regex
   //$form['source2node' . $id]['source2node'. $id .'offset'] = array(
   //  '#type' => 'textfield',
@@ -109,71 +98,114 @@ function source2node_form_alter(&$form, $form_state, $form_id) {
   //  '#default_value' => _source2node_get_default_offset($id),
   //  '#required' => FALSE,
   //);
-  
+
+  $items = array();
+  $items[] = t('Order is important!');
+  $items[] = t('The find and replacments need to match the same line in both boxes.');
+  $items[] = t('To delete text (instead of replace) enter <code>[delete]</code> on the replacement line');
+  $items[] = t('Regex find and replace is supported when you wrap your find text in the "/" character');
+  $items[] = t('You may comment out a single replacement by prepending "//" to the find box only');
+
   $form['source2node' . $id]['source2node'. $id .'find_replace'] = array(
     '#type' => 'fieldset',
     '#attributes' => array(
       'class' => array('source2node-advanced'),
     ),
     '#title' => t('Find and Replace'),
-    '#description' => t('You may do text find and replacements when the source is returned.  To do so, add each find string (one per line) in the <strong>Find</strong> box.  Then add the corresponding replacement string (one per line) in the <strong>Replace</strong> box. <strong>Order is important!</strong> The find and replacments need to match the same line in both boxes. To delete text (instead of replace) enter the following on the replacement line: <strong>[delete]</strong>.'),
+    '#description' => t('You may do text find and replacements when the source is returned.  To do so, add each find string (one per line) in the <strong>Find</strong> box.  Then add the corresponding replacement string (one per line) in the <strong>Replace</strong> box.') . theme("item_list", array(
+      'items' => $items,
+    )),
     '#collapsible' => TRUE,
-    
+
     //only collapse if the find and repalce are empty
     '#collapsed' => TRUE,
   );
-  
+
+  $default = _source2node_get_default_find($id);
   $form['source2node' . $id]['source2node'. $id .'find_replace']['source2node'. $id .'find'] = array(
     '#type' => 'textarea',
     '#title' => t('Find'),
-    '#default_value' => _source2node_get_default_find($id),
+    '#default_value' => $default,
     '#required' => FALSE,
-    '#rows' => 5,
-    '#resizable' => TRUE,
+    '#rows' => count(explode("\n", $default)) + 5,
+    '#resizable' => FALSE,
+    '#attributes' => array(
+      'class' => array(
+        'lined'
+      ),
+    ),
   );
 
+  $default = _source2node_get_default_replace($id);
   $form['source2node' . $id]['source2node'. $id .'find_replace']['source2node'. $id .'replace'] = array(
     '#type' => 'textarea',
     '#title' => t('Replace'),
-    '#default_value' => _source2node_get_default_replace($id),
+    '#default_value' => $default,
     '#required' => FALSE,
-    '#rows' => 5,
-    '#resizable' => TRUE,     
+    '#rows' => count(explode("\n", $default)) + 5,
+    '#resizable' => FALSE,
+    '#attributes' => array(
+      'class' => array(
+        'lined'
+      ),
+    ),
   );
-  
+
   $form['source2node' . $id]['source2node'. $id .'find_active'] = array(
     '#type' => 'checkbox',
     '#title' => t('Enable Find and Replace'),
     '#default_value' => _source2node_get_default_find_active($id),
-  );    
-  
+  );
+
   $form['source2node' . $id]['source2node'. $id .'get_source'] = array(
     '#type' => 'button',
     '#value' => t('Get Source Code Now', array(
       '%url' => _source2node_get_default_url($id, $node),
     )),
   );
-  
+
   if (module_exists('redirect')) {
-    
+
     //get the redirect path
     preg_match('/(http:\/\/)?.*\/(.*)$/', _source2node_get_default_url($id, $node), $found);
     $redirect = !empty($found[2]) ? $found[2] : '';
     $form['source2node'. $id .'redirect'] = array('#type' => 'hidden', '#value' => $redirect);
-    
+
     $form['source2node' . $id]['source2node'. $id .'do_redirect'] = array(
       '#type' => 'checkbox',
-      '#title' => t('Create a 301 redirect from <span id="source2node-redirect">%url</span> to this node. (This will happen when the node is saved.) <strong>Unchecking this will NOT delete a redirect that was previously created!</strong> <a href="@list">Click here</a> for a list of previously created redirects.', array(
-        '%url' => empty($redirect) ? '???' : $redirect,
+      '#title' => t('Create a 301 redirect from <em><span id="source2node-redirect">!url</span></em> to this node. (This will happen when the node is saved.) <strong>Unchecking this will NOT delete a redirect that was previously created!</strong> <a href="@list">Click here</a> for a list of previously created redirects.', array(
+        '!url' => empty($redirect) ? '???' : $redirect,
         '@list' => url('admin/config/search/redirect'),
       )),
       '#default_value' => _source2node_get_default_redirect($id),
     );
   }
-  
+
   //send off to create the redirect
   $form['actions']['submit']['#submit'][] = 'source2node_node_form_submit';
 
+}
+
+/**
+ * Apply post render processing and return the form array
+ *
+ * @param array $form
+ * @param array &$form_state
+ *
+ * @return array
+ */
+function _source2node_post_render($form, &$form_state) {
+  $settings = array(
+    'token' => drupal_get_token('source2node'),
+    'globalId' => str_replace('_', '-', $form_state['#source2node_global_id']),
+    //'insertTitleField' => _source2node_get_insert_title_field($form['type']['#value']),
+    //'insertBodyField' => _source2node_get_insert_body_field($form['type']['#value']),
+  );
+  drupal_add_js(array('source2node' => $settings), 'setting');
+  drupal_add_js(drupal_get_path('module', 'source2node') . '/js/source2node.js');
+  drupal_add_css(drupal_get_path('module', 'source2node') . '/stylesheets/source2node.css');
+
+  return $form;
 }
 
 /**
@@ -189,14 +221,14 @@ function source2node_node_form_submit($form, &$form_state) {
   variable_set('source2node_default_find_active', $form_state['values']['source2node'. $id .'find_active']);
   variable_set('source2node_default_find', $form_state['values']['source2node'. $id .'find']);
   variable_set('source2node_default_replace', $form_state['values']['source2node'. $id .'replace']);
-  variable_set('source2node_default_redirect', $form_state['values']['source2node'. $id .'redirect']);
-  
+  variable_set('source2node_default_do_redirect', $form_state['values']['source2node'. $id .'do_redirect']);
+
   //@todo remove the isset after offset is devved
   if (isset($form_state['values']['source2node'. $id .'offset'])) {
     variable_set('source2node_default_offset', $form_state['values']['source2node'. $id .'offset']);
   }
-  
-  
+
+
   //get the node from the edit form
   if (!empty($form['#node']->nid)) {
     $nid = $form['#node']->nid;
@@ -205,29 +237,32 @@ function source2node_node_form_submit($form, &$form_state) {
   elseif ($form_state['nid']) {
     $nid = $form_state['nid'];
   }
-  
+
   //create a redirect
-  if ($nid > 0 && $form_state['values']['source2node'. $id .'do_redirect'] && preg_match('/(http:\/\/)?.*\/(.*)$/', $form_state['values']['source2node'. $id .'url'], $found) && !empty($found[2])) {
-    $redirect = array(
-      'source' => $found[2],
-      'redirect' => 'node/'. $form_state['nid'],
-      'language' => LANGUAGE_NONE,
-    );
-    
-    //see if it already exists
-    $exists = redirect_load_by_hash(redirect_get_redirect_hash($redirect));
-    if (empty($exists['rid'])) {
+  if ($nid > 0
+      && $form_state['values']['source2node'. $id .'do_redirect']
+      && preg_match('/(http:\/\/)?.*\/(.*)$/', $form_state['values']['source2node'. $id .'url'], $found)
+      && !empty($found[2])) {
+    $redirect = new stdClass();
+    redirect_object_prepare($redirect);
+    $redirect->source = $found[2];
+    $redirect->redirect = 'node/'. $form_state['nid'];
+    // Check if the redirect exists before saving.
+    $hash = redirect_hash($redirect);
+    if (!redirect_load_by_hash($hash)) {
       redirect_save($redirect);
-      drupal_set_message(t('A 301 redirect has been created from %from to %to', array(
-        '%from' => $redirect['source'],
-        '%to' => $redirect['redirect'],
+      drupal_set_message(t('A 301 redirect has been created from !from to !to', array(
+        '!from' => l($redirect->source, $redirect->source),
+        '!to' => l($redirect->redirect, $redirect->redirect),
       )));
     }
     else {
-      drupal_set_message(t('A redirect already exists.'));
+      drupal_set_message(t('A redirect from %path exists.', array(
+        '%path' => l($redirect->source, $redirect->source),
+      )));
     }
   }
-  
+
   //update our own record of this
   $data = array(
     'nid' => $nid,
@@ -237,7 +272,7 @@ function source2node_node_form_submit($form, &$form_state) {
     ':nid' => $nid,
   ));
   drupal_write_record('source2node_index', $data);
-  
+
   //allow other modules to do stuff with this data
   module_invoke_all('source2node_index', $form_state['values']['source2node_url'], $nid);
 }
@@ -252,7 +287,7 @@ function source2node_enable() {
   //make a note of who enabled it
   global $user;
   watchdog('source2node', 'source2node module enabled by %user (uid: %uid)', array('%user' => $user->name, '%uid' => $user->uid));
-  
+
   //change the system weight for the module, if needed
   //$weight = db_result(db_query_range("SELECT weight FROM {system} WHERE name = 'fieldgroup'", 1));
   //db_query("UPDATE {system} SET `weight` = ". ++$weight ." WHERE name = 'source2node'"); //don't do alimit on this query in case there are more than one entries?
@@ -273,7 +308,7 @@ function source2node_disable() {
 function source2node_permission() {
   return array(
     'administer source2node' => array(
-      'title' => t('Administer source2node'), 
+      'title' => t('Administer source2node'),
       'description' => t('Perform administration tasks for source2node.'),
     ),
   );
@@ -284,7 +319,7 @@ function source2node_permission() {
  */
 function source2node_menu() {
   $items = array();
-  
+
   //$items['admin/settings/source2node'] = array(
   //  'title' => 'source2node settings',
   //  'description' => 'Configure how HTML To Node behaves.',
@@ -365,10 +400,10 @@ function _source2node_get_page($url) {
      the delimiters
  */
 function _source2node_get_section($source, $begin, $end, $offset = 0) {
-  
+
   //make sure 0 is really 0 so the key works
   $offset = (int)$offset;
-  
+
   //start
   if (_source2node_is_regex($begin)) {
     preg_match_all($begin, $source, $found, PREG_OFFSET_CAPTURE);
@@ -390,7 +425,7 @@ function _source2node_get_section($source, $begin, $end, $offset = 0) {
   //end
   if (_source2node_is_regex($end)) {
     preg_match_all($end, $source, $found, PREG_OFFSET_CAPTURE, $left);
-    $right = $found[0][$offset][1];    
+    $right = $found[0][$offset][1];
   }
   elseif (!empty($end)) {
     //non-regex
@@ -399,7 +434,7 @@ function _source2node_get_section($source, $begin, $end, $offset = 0) {
   else {
     $right = strlen($source);
   }
-  
+
   $section = trim(substr($source, $left, $right - $left));
   return $section;
 }
@@ -413,7 +448,7 @@ function _source2node_is_regex($delimiter) {
 
 /**
  * Get the default url based on the last use via session
- * 
+ *
  * @param string $field
  *  The field for which this text is to be used
  *
@@ -423,7 +458,7 @@ function _source2node_get_default_url($field, $node = NULL) {
   if (empty($node->nid)) {
     return variable_get('source2node_default_url', '');
   }
-  
+
   static $sources = array();
   if (empty($sources[$node->nid])) {
     if ($source = db_query("SELECT source FROM {source2node_index} WHERE nid = :nid", array(
@@ -437,7 +472,7 @@ function _source2node_get_default_url($field, $node = NULL) {
 
 /**
  * Get the default title tag
- * 
+ *
  * @param string $field
  *  The field for which this text is to be used
  *
@@ -461,7 +496,7 @@ function _source2node_get_default_begin($field) {
 
 /**
  * Get the default ending text
- * 
+ *
  * @param string $field
  *  The field for which this text is to be used
  *
@@ -472,7 +507,7 @@ function _source2node_get_default_end($field) {
 }
 
 /**
- * Get the default find 
+ * Get the default find
  *
  * @param string $field
  *  The field for which this text is to be used
@@ -516,7 +551,7 @@ function _source2node_get_default_find_active($field) {
  * @return string
  */
 function _source2node_get_default_redirect($field) {
-  return variable_get('source2node_default_redirect', TRUE);
+  return variable_get('source2node_default_do_redirect', TRUE);
 }
 
 /**
@@ -537,12 +572,12 @@ function _source2node_get_default_replace($field) {
 function source2node_ajax() {
 
   $token = isset($_POST['token']) ? $_POST['token'] : '';
-  
+
   //check the token
   $success = TRUE;
   if (drupal_valid_token($token, 'source2node')) {
     $values = $_POST;
-    
+
     if (!($source = _source2node_get_page($values['url']))) {
       $success = FALSE;
       $message = t('Could not get source code from @url.', array(
@@ -557,8 +592,8 @@ function source2node_ajax() {
 
       /**
        * if we're here, we have a successful $souce variable
-       */      
-      
+       */
+
       //now compute the title tag regex
       $title_regex = $values['title'];
       if (!_source2node_is_regex($title_regex)) {
@@ -572,24 +607,24 @@ function source2node_ajax() {
 
       //now grab the title from the source
       if ($title_regex && preg_match($title_regex, $source, $found) && !empty($found[1])) {
-        
+
         //strip the <h1> and contents out of the body, if it happens to be there
         $body = trim(str_replace($found[0], '', $section));
-  
+
         //in the rare cases there is html embedded inside the h1 tag we need to
         //strip it out and place it at the top of the body so we don't loose it
         if (($plain_title = strip_tags($found[1])) != $found[1]) {
           $orphan_html = str_replace($plain_title, '', $found[1]);
           $body = $orphan_html . $body;
         }
-                
+
         //pull the plain text and SOME tags out of the h1
         $title = filter_xss(trim($found[1]), _source2node_get_allowabled_h1_tags());
-        
+
         //to eliminate line breaks and extra spaces, which have no place in an h1 tag
         $title = preg_replace('/\s{2,}/', ' ', $title);
-        
-        
+
+
         $message = t('Title and Body extracted successfully.');
       }
       else {
@@ -601,9 +636,9 @@ function source2node_ajax() {
     $success = FALSE;
     $message = t('Failed bad token.');
   }
-  
+
   $body = isset($body) ? $body : $section;
-  
+
   /**
    * Apply Filters Begin
    */
@@ -613,37 +648,43 @@ function source2node_ajax() {
   if (variable_get('source2node_whitespace_cleanup', SOURCE2NODE_WHITESPACE_CLEANUP)) {
     //strip empty tags
     while (preg_match('/<(\w+)[^>]*>(&nbsp;|\s)*<\/\1>/', $body)) {
-      $body = preg_replace('/<(\w+)[^>]*>(&nbsp;|\s)*<\/\1>/', '', $body);  
+      $body = preg_replace('/<(\w+)[^>]*>(&nbsp;|\s)*<\/\1>/', '', $body);
     }
-    
+
     //trim <br> from both ends
     $body = preg_replace('/^<br>|<br \/>+/si', '', $body);
     $body = preg_replace('/<br>|<br \/>+$/si', '', $body);
-    
+
     //final whitespace trim
     $body = trim($body);
   }
-  
+
   //make all absolute urls relative
   if (variable_get('source2node_url_format', SOURCE2NODE_URLS_MAKE_RELATIVE)) {
     $body = str_replace($info['dirname'] .'/', '/', $body);
   }
-  
+
   //process the find and replace
   if ($values['find'] && $values['replace']) {
     $finds = explode("\n", $values['find']);
     $replaces = explode("\n", $values['replace']);
     foreach ($finds as $index => $find) {
+
+      // This is commented out if it begins wiht //
+      if (strpos($find, '//') === 0) {
+        continue;
+      }
+
       $replaces[$index] = trim($replaces[$index]) == '[delete]' ? '' : $replaces[$index];
       if (_source2node_is_regex($find)) {
         $body = preg_replace($find, $replaces[$index], $body);
       }
       else {
-        $body = str_replace($find, $replaces[$index], $body);  
+        $body = str_replace($find, $replaces[$index], $body);
       }
     }
   }
-  
+
   /**
    * Filters End
    */
@@ -655,8 +696,8 @@ function source2node_ajax() {
       'title' => isset($title) ? $title : '',
       'body' => $body,
     ),
-  );        
-    
+  );
+
   //print it out
   drupal_json_output($result);
   exit();
@@ -677,7 +718,7 @@ function source2node_form_node_type_form_alter(&$form, $form_state) {
   if (!user_access('administer source2node')) {
     return;
   }
-  
+
   //add the node type defaults
   $form['source2node'] = array(
     '#type' => 'fieldset',
@@ -686,18 +727,18 @@ function source2node_form_node_type_form_alter(&$form, $form_state) {
     '#collapsed' => TRUE,
     '#group' => 'additional_settings',
   );
-  
+
   $fields = field_info_instances('node', $form['#node_type']->type);
   $body_options = $title_options = array('-1' => t('Disabled'));
-  
+
   //put in the title field if enabled
   if ($form['#node_type']->has_title) {
     $title_options['title'] = $form['#node_type']->title_label;
   }
-  
-  
+
+
   foreach ($fields as $id => $data) {
-    if (isset($data['widget']['type'])) {      
+    if (isset($data['widget']['type'])) {
       if (in_array($data['widget']['type'], array('text_textarea', 'text_textarea_with_summary'))) {
         $body_options[$id] = $data['label'];
       }
@@ -706,7 +747,7 @@ function source2node_form_node_type_form_alter(&$form, $form_state) {
       }
     }
   }
-  
+
 
   if (empty($body_options)) {
     $form['source2node']['source2node_error'] = array(
@@ -729,9 +770,9 @@ function source2node_form_node_type_form_alter(&$form, $form_state) {
       '#description' => t('Choose which textarea will receive the source code.'),
       '#default_value' => _source2node_get_insert_body_field($form['#node_type']->type),
       '#options' => $body_options,
-    );    
+    );
   }
-  
+
   $form['#submit'][] = 'source2node_form_node_type_form_submit';
 }
 
@@ -757,7 +798,7 @@ function source2node_form_node_type_form_submit($form, &$form_state) {
  * - if disabled for this node type; you will get a -1
  */
 function _source2node_get_insert_body_field($bundle_name) {
-  return variable_get('source2node_insert_body_field:' .$bundle_name, -1);
+  return variable_get('source2node_insert_body_field:' . $bundle_name, -1);
 }
 
 /**
@@ -771,5 +812,71 @@ function _source2node_get_insert_body_field($bundle_name) {
  * - if disabled for this node type; you will get a -1
  */
 function _source2node_get_insert_title_field($bundle_name) {
-  return variable_get('source2node_insert_title_field:' .$bundle_name, -1);
+  return variable_get('source2node_insert_title_field:' . $bundle_name, -1);
+}
+
+/**
+ * Read/Write the quick edit files to the server
+ *
+ * @param string $op
+ * - save
+ * - load
+ * @param object $node
+ *
+ * @return string|false
+ */
+function source2node_quick_edits($op, $node) {
+  if (empty($node->type)
+      || !($body_field = _source2node_get_insert_body_field($node->type))
+      || $body_field == -1) {
+    return FALSE;
+  }
+  $directory = 'public://source2node';
+  file_prepare_directory($directory, FILE_CREATE_DIRECTORY);
+  foreach (array_keys($node->{$body_field}) as $lang) {
+    foreach ($node->{$body_field}[$lang] as $delta => $item) {
+      $filename = array(
+        $node->nid,
+        $body_field,
+        $lang,
+        $delta,
+      );
+      $filename = implode('_', $filename);
+      $filename = $directory . '/' . $filename . '.html';
+      if ($op === 'save') {
+        file_unmanaged_save_data($item['value'], $filename, FILE_EXISTS_REPLACE);
+      }
+      elseif ($op === 'load' && ($contents = @file_get_contents($filename))) {
+        $node->{$body_field}[$lang][$delta]['value'] = $contents;
+      }
+    }
+  }
+}
+
+
+/**
+ * Implements hook_node_insert().
+ *
+ * @param object $node
+ */
+function source2node_node_insert($node) {
+  source2node_quick_edits('save', $node);
+}
+
+/**
+ * Implements hook_node_update().
+ *
+ * @param object $node
+ */
+function source2node_node_update($node) {
+  source2node_quick_edits('save', $node);
+}
+
+/**
+ * Implements hook_node_load().
+ */
+function source2node_node_load($nodes, $types) {
+  foreach (array_keys($nodes) as $key) {
+    source2node_quick_edits('load', $nodes[$key]);
+  }
 }

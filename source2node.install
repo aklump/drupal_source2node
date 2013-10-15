@@ -31,26 +31,21 @@ function source2node_schema() {
   return $schema;
 }
 
-
-/**
- * The install hook will fire when the module gets installed
- */
-function source2node_install() {
-
-}
-
 /*
  * The uninstall hook will fire when the module gets uninstalled.
  */
 function source2node_uninstall() {
-  
+
   //Clean up our entries in the variables table.
   if ($result = db_query("SELECT name FROM {variable} WHERE `name` LIKE 'source2node%'")) {
     foreach($result as $data) {
       variable_del($data->name);
-    }    
-  }	
-  
+    }
+  }
+
+  // Delete any of the files that we created for fast editing
+  file_unmanaged_delete_recursive('public://source2node');
+
   //delete blocks
   //db_query("DELETE FROM {block} WHERE `module` = 'source2node'");
 }
@@ -60,8 +55,8 @@ function source2node_uninstall() {
  *
  * Checks installation requirements and do status reporting.
  * http://api.drupal.org/api/function/hook_requirements
- * 
- * @param phase 'install' or 'runtime': 
+ *
+ * @param phase 'install' or 'runtime':
  * @return A keyed array of requirements
  */
 //function source2node_requirements($phase) {

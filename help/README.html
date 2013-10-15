@@ -1,0 +1,64 @@
+<h2>Summary</h2>
+
+<p>While active, this module adds a fieldset to the node edit form which allows you to enter information about a legacy webpage (via url) that contains source code intended for the node you are creating. By design, it was intended to help you convert a flat html pages into Drupal nodes very rapidly and accurately.</p>
+
+<h2>Requirements</h2>
+
+<h2>Installation</h2>
+
+<ol>
+<li>Download and unzip this module into your modules directory.</li>
+<li>Goto Administer > Site Building > Modules and enable this module.</li>
+<li>While active this module will add a fieldset to the top of all node edit forms (which have been enabled*). <strong>After content migration you should disable/uninstall this module</strong> and it's codebase form your site.</li>
+</ol>
+
+<h2>Configuration</h2>
+
+<ol>
+<li>For every node type to which you wish to import content,  visit the respective edit page <code>/admin/structure/types/manage/[bundle_type]</code> and configure settings in the the <code>Source To Node</code> fieldset at the bottom of the form.</li>
+<li>This module will automatically create the necessary redirects when you use it, so long as you've enabled the <a href="http://drupal.org/project/redirect">Redirect module</a>.  You should really do that now.</li>
+</ol>
+
+<h2>Usage</h2>
+
+<h3>Gotchas (READ FIRST):</h3>
+
+<ol>
+<li><p>You must be in full html mode (not WYSIWYG) on the textarea that is to receive the source code.</p></li>
+<li><p>With your old flat site on the left and your drupal site on the right (in two separate windows), you may proceed...</p></li>
+<li>In the Drupal window, open the new content form for one of the node types you just configured and you will see a new fieldset at the top of the form.</li>
+</ol>
+
+<h3>Url Of Source</h3>
+
+<ol>
+<li>Enter the absolute url of the flat html page you wish to convert to the Drupal node.</li>
+<li>When you click on Get Source Code Now, the designated* contents of the source at that url will be moved into the Body element of the page.</li>
+</ol>
+
+<h3>Section Start/End Text</h3>
+
+<ol>
+<li>You will not want to pull over the entire source code of the page; at the very least you'll only want what is inside the <body> tag of your source html.</li>
+<li>However this section is much more powerful in that it allows you to designate open and closing text snippets which delineate the section of the page you wish to capture into the body field of the node.</li>
+</ol>
+
+<h3>Section End #Text</h3>
+
+<h3>Section #Offset</h3>
+
+<h3>Find And #Replace</h3>
+
+<h2>API</h2>
+
+<h2>Contact</h2>
+
+<ul>
+<li><strong>In the Loft Studios</strong></li>
+<li>Aaron Klump - Developer</li>
+<li>PO Box 29294 Bellingham, WA 98228-1294</li>
+<li><em>aim</em>: theloft101</li>
+<li><em>skype</em>: intheloftstudios</li>
+<li><em>d.o</em>: aklump</li>
+<li><a href="http://www.InTheLoftStudios.com">http://www.InTheLoftStudios.com</a></li>
+</ul>
