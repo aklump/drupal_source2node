@@ -58,11 +58,17 @@ Usage
    designate open and closing text snippets which delineate the section of
    the page you wish to capture into the body field of the node.
 
-  Section End #Text
+  Section End Text
 
-  Section #Offset
+   @todo
 
-  Find And #Replace
+  Section Offset
+
+   @todo
+
+  Find And Replace
+
+   @todo
 
 API
 
